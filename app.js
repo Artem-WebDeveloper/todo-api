@@ -10,6 +10,8 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use('/api/v1', todoRouter);
 
+app.use(err => {});
+
 app.listen(PORT, () => {
   console.log(`Todo Server is running on port ${PORT}`);
 });

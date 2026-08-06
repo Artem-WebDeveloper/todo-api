@@ -1,4 +1,5 @@
 const db = require('../db');
+const isValideTaskText = require('../utils/isValidTaskText');
 
 class TodosController {
   async getTodos(req, res) {
@@ -49,24 +50,17 @@ class TodosController {
   async createTodo(req, res) {
     try {
       const { text } = req.body;
-      if (typeof text !== 'string' || !text.trim()) {
+      const { isValide, message } = isValideTaskText(text);
+
+      if (!isValide) {
         return res.status(400).json({
           status: 'fail',
-          message: 'Text is required and must be a non-empty string',
-        });
-      }
-
-      const cleanText = text.trim();
-
-      if (cleanText.length > 1000) {
-        return res.status(400).json({
-          status: 'fail',
-          message: `Text of todo exceeds 1000 symbols!`,
+          message,
         });
       }
 
       const result = await db.query('INSERT INTO todos (text) VALUES ($1) RETURNING *', [
-        cleanText,
+        text.trim(),
       ]);
 
       res.status(201).json({
@@ -80,7 +74,60 @@ class TodosController {
       });
     }
   }
-  async updateTodo() {}
+  async updateTodo(req, res) {
+    try {
+      const { id } = req.params;
+
+      if (!/^\d+$/.test(id)) {
+        return res.status(400).json({ status: 'fail', message: `Invalid id: ${id}` });
+      }
+
+      let { text, is_done } = req.body;
+      if (text === undefined && is_done === undefined) {
+        return res.status(400).json({ status: 'fail', message: 'Nothing to update!' });
+      }
+
+      if (text !== undefined) {
+        const { isValid, message } = isValideTaskText(text);
+        if (!isValid) {
+          return res.status(400).json({ status: 'fail', message });
+        }
+        text = text.trim();
+      }
+
+      text = text.trim();
+
+      let queryParams;
+      if (is_done === undefined) {
+        queryParams = {
+          str: 'UPDATE todos SET text = $1 , updated_at = NOW() WHERE id = $2 RETURNING *',
+          vars: [text, id],
+        };
+      } else if (text === undefined) {
+        queryParams = {
+          str: 'UPDATE todos SET is_done = $1 , updated_at = NOW() WHERE id = $2 RETURNING *',
+          vars: [is_done, id],
+        };
+      } else {
+        queryParams = {
+          str: 'UPDATE todos SET text = $1 , is_done = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+          vars: [text, is_done, id],
+        };
+      }
+
+      const result = await db.query(queryParams.str, queryParams.vars);
+
+      res.status(200).json({
+        status: 'success',
+        data: result.rows[0],
+      });
+    } catch (err) {
+      res.status(500).json({
+        status: 'fail',
+        message: 'Something went wrong',
+      });
+    }
+  }
 
   async deleteTodo(req, res) {
     try {
