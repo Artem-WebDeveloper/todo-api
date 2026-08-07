@@ -21,7 +21,6 @@ class TodosController {
     const result = await db.query('SELECT * FROM todos WHERE id = $1', [id]);
 
     if (result.rows.length === 0) return next(new AppError(`Todo with id ${id} not found`, 404));
-
     res.status(200).json({
       status: 'success',
       data: result.rows[0],

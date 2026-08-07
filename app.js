@@ -1,4 +1,11 @@
 require('dotenv').config();
+
+process.on('uncaughtException', err => {
+  console.log('UNCAUGHT EXCEPTION! Shutting down...');
+  console.log(err.name, err.message);
+  process.exit(1);
+});
+
 const express = require('express');
 const app = express();
 const morgan = require('morgan');
@@ -21,6 +28,14 @@ app.all('/*splat', (req, res, next) => {
 
 app.use(globalErrorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Todo Server is running on port ${PORT}`);
+});
+
+process.on('unhandledRejection', err => {
+  console.log('UNHANDLER REJECTION! Shutting down...');
+  console.log(err.name, err.message);
+  server.close(() => {
+    process.exit(1);
+  });
 });
